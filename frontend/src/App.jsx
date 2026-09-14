@@ -1,69 +1,72 @@
-import { useEffect, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import ProtectedRoute from './components/ProtectedRoute'
+import { AuthProvider, AuthContext } from './context/AuthContext'
+import DashboardLayout from './layouts/DashboardLayout'
+import Login from './pages/auth/Login'
+import Register from './pages/auth/Register'
+import ApplyHostel from './pages/student/ApplyHostel'
+import MyApplication from './pages/student/MyApplication'
+import MyRoom from './pages/student/MyRoom'
+import StudentDashboard from './pages/student/StudentDashboard'
+import AllocationManagement from './pages/warden/AllocationManagement'
+import ApplicationReview from './pages/warden/ApplicationReview'
+import HostelManagement from './pages/warden/HostelManagement'
+import RoomManagement from './pages/warden/RoomManagement'
+import WardenDashboard from './pages/warden/WardenDashboard'
+import { useContext } from 'react'
 
-const apiBase = import.meta.env.VITE_API_URL || '/api'
+function RootRedirect() {
+  const { user, isAuthenticated, loading } = useContext(AuthContext)
 
-function App() {
-  const [health, setHealth] = useState({
-    loading: true,
-    message: 'Checking API connection...',
-    database: 'unknown',
-  })
+  if (loading) {
+    return null
+  }
 
-  useEffect(() => {
-    const checkHealth = async () => {
-      try {
-        const response = await fetch(`${apiBase}/health`)
-        const payload = await response.json()
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />
+  }
 
-        setHealth({
-          loading: false,
-          message: payload.message || 'API responded',
-          database: payload.data?.database || 'unknown',
-        })
-      } catch (error) {
-        setHealth({
-          loading: false,
-          message: 'Frontend is running, but the API is not reachable yet.',
-          database: 'offline',
-        })
-      }
-    }
-
-    checkHealth()
-  }, [])
-
-  return (
-    <main className="relative min-h-screen overflow-hidden bg-navy-950 px-6 py-16 text-slate-100">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.16),transparent_28%)]" />
-
-      <section className="relative mx-auto max-w-3xl rounded-3xl border border-white/10 bg-white/5 p-8 shadow-glass backdrop-blur-xl">
-        <p className="mb-3 text-sm uppercase tracking-[0.2em] text-slate-400">
-          Phase 1 setup
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
-          Hostel Room Allocation System
-        </h1>
-        <p className="mt-4 max-w-2xl text-slate-300">
-          The project structure, Vite frontend, Express backend, Tailwind theme,
-          and MongoDB connection are now in place. Authentication and dashboards
-          will be added in the next phases.
-        </p>
-
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <article className="rounded-2xl border border-white/10 bg-navy-900/70 p-5">
-            <h2 className="text-sm font-medium text-slate-400">API status</h2>
-            <p className="mt-2 text-lg text-white">
-              {health.loading ? 'Checking...' : health.message}
-            </p>
-          </article>
-          <article className="rounded-2xl border border-white/10 bg-navy-900/70 p-5">
-            <h2 className="text-sm font-medium text-slate-400">Database</h2>
-            <p className="mt-2 text-lg capitalize text-white">{health.database}</p>
-          </article>
-        </div>
-      </section>
-    </main>
+  return user.role === 'warden' ? (
+    <Navigate to="/warden/dashboard" replace />
+  ) : (
+    <Navigate to="/student/dashboard" replace />
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          {/* Public Authentication Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Protected Routes inside Main Dashboard Layout */}
+          <Route element={<DashboardLayout />}>
+            {/* Student Protected Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['student']} />}>
+              <Route path="/student/dashboard" element={<StudentDashboard />} />
+              <Route path="/student/apply" element={<ApplyHostel />} />
+              <Route path="/student/application" element={<MyApplication />} />
+              <Route path="/student/room" element={<MyRoom />} />
+            </Route>
+
+            {/* Warden Protected Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['warden']} />}>
+              <Route path="/warden/dashboard" element={<WardenDashboard />} />
+              <Route path="/warden/hostels" element={<HostelManagement />} />
+              <Route path="/warden/rooms" element={<RoomManagement />} />
+              <Route path="/warden/applications" element={<ApplicationReview />} />
+              <Route path="/warden/allocations" element={<AllocationManagement />} />
+            </Route>
+          </Route>
+
+          {/* Root Redirect Fallback */}
+          <Route path="/" element={<RootRedirect />} />
+          <Route path="*" element={<RootRedirect />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  )
+}
