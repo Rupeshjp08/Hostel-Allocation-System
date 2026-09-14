@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bed, Building2, Calendar, DollarSign, Layers, Users } from 'lucide-react'
+import { Bed, Building2, Calendar, Layers, Users } from 'lucide-react'
 import { getMyAllocation } from '../../services/allocationService'
 import Badge from '../../components/Badge'
 import Card from '../../components/Card'
@@ -20,6 +20,7 @@ export default function MyRoom() {
       } catch (err) {
         // If 404 or no allocation found
         setAllocation(null)
+        setError(err.message || 'No active allocation found.')
       } finally {
         setLoading(false)
       }
@@ -96,6 +97,14 @@ export default function MyRoom() {
 
             <div className="rounded-xl border border-white/5 bg-navy-900/60 p-3.5">
               <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Bed className="h-4 w-4 text-brand-blue" />
+                <span>Assigned Bed</span>
+              </div>
+              <p className="mt-1 font-semibold text-brand-blue">Bed #{allocation.bedNumber || 1}</p>
+            </div>
+
+            <div className="rounded-xl border border-white/5 bg-navy-900/60 p-3.5">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
                 <Users className="h-4 w-4 text-amber-400" />
                 <span>Capacity</span>
               </div>
@@ -104,19 +113,11 @@ export default function MyRoom() {
 
             <div className="rounded-xl border border-white/5 bg-navy-900/60 p-3.5">
               <div className="flex items-center gap-2 text-xs text-slate-400">
-                <DollarSign className="h-4 w-4 text-emerald-400" />
-                <span>Monthly Fee</span>
-              </div>
-              <p className="mt-1 font-semibold text-white">₹{room.monthlyFee || 0}</p>
-            </div>
-
-            <div className="rounded-xl border border-white/5 bg-navy-900/60 p-3.5">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
                 <Calendar className="h-4 w-4 text-blue-400" />
                 <span>Allocated On</span>
               </div>
               <p className="mt-1 font-semibold text-white">
-                {new Date(allocation.allocatedAt).toLocaleDateString()}
+                {new Date(allocation.allocationDate || allocation.createdAt).toLocaleDateString()}
               </p>
             </div>
           </div>

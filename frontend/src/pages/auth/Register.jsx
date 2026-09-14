@@ -9,18 +9,28 @@ import Button from '../../components/Button'
 import Input from '../../components/Input'
 import Select from '../../components/Select'
 
-const registerSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  rollNumber: z.string().min(2, 'Roll number is required'),
-  department: z.string().min(2, 'Department is required'),
-  year: z.coerce.number().min(1).max(4, 'Year must be between 1 and 4'),
-  gender: z.enum(['Male', 'Female', 'Other'], {
-    errorMap: () => ({ message: 'Please select a gender' }),
-  }),
-  contactNumber: z.string().min(10, 'Contact number must be at least 10 digits'),
-})
+const registerSchema = z
+  .object({
+    name: z.string().min(2, 'Name must be at least 2 characters'),
+    email: z.string().email('Please enter a valid email address'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string().min(8, 'Please confirm your password'),
+    studentId: z
+      .string()
+      .min(3, 'Student ID must be at least 3 characters')
+      .max(20, 'Student ID must not exceed 20 characters')
+      .regex(/^[A-Za-z0-9/-]{3,20}$/, 'Student ID can only contain letters, numbers, hyphens, and slashes'),
+    department: z.string().min(2, 'Department is required'),
+    year: z.coerce.number().min(1).max(5, 'Year must be between 1 and 5'),
+    gender: z.enum(['Male', 'Female', 'Other'], {
+      errorMap: () => ({ message: 'Please select a gender' }),
+    }),
+    phone: z.string().regex(/^[0-9]{10}$/, 'Phone number must be 10 digits'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
 
 export default function Register() {
   const { register: registerAuth } = useAuth()
@@ -103,22 +113,33 @@ export default function Register() {
             />
 
             <Input
-              label="Roll Number"
-              placeholder="2024CSE101"
-              icon={UserCheck}
-              error={errors.rollNumber?.message}
-              {...register('rollNumber')}
+              label="Confirm Password"
+              type="password"
+              placeholder="••••••••"
+              icon={Lock}
+              error={errors.confirmPassword?.message}
+              {...register('confirmPassword')}
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Student ID"
+              placeholder="2024CSE101"
+              icon={UserCheck}
+              error={errors.studentId?.message}
+              {...register('studentId')}
+            />
+
             <Input
               label="Department"
               placeholder="CSE / ECE / ME"
               error={errors.department?.message}
               {...register('department')}
             />
+          </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
             <Select
               label="Academic Year"
               options={[
@@ -126,6 +147,7 @@ export default function Register() {
                 { value: '2', label: '2nd Year' },
                 { value: '3', label: '3rd Year' },
                 { value: '4', label: '4th Year' },
+                { value: '5', label: '5th Year' },
               ]}
               error={errors.year?.message}
               {...register('year')}
@@ -147,8 +169,8 @@ export default function Register() {
             label="Contact Phone Number"
             placeholder="9876543210"
             icon={Phone}
-            error={errors.contactNumber?.message}
-            {...register('contactNumber')}
+            error={errors.phone?.message}
+            {...register('phone')}
           />
 
           <Button type="submit" loading={submitting} className="mt-2 w-full">

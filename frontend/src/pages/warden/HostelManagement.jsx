@@ -15,10 +15,11 @@ import Select from '../../components/Select'
 
 const hostelSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  code: z.string().min(2, 'Code must be at least 2 characters'),
   type: z.enum(['Boys', 'Girls', 'Co-ed'], {
     errorMap: () => ({ message: 'Please select a hostel type' }),
   }),
+  location: z.string().min(2, 'Location is required'),
+  totalCapacity: z.coerce.number().min(1, 'Capacity must be at least 1'),
   description: z.string().optional(),
   isActive: z.boolean().default(true),
 })
@@ -40,6 +41,7 @@ export default function HostelManagement() {
     resolver: zodResolver(hostelSchema),
     defaultValues: {
       type: 'Boys',
+      totalCapacity: 50,
       isActive: true,
     },
   })
@@ -64,8 +66,9 @@ export default function HostelManagement() {
     setEditingHostel(null)
     reset({
       name: '',
-      code: '',
       type: 'Boys',
+      location: 'Main Campus',
+      totalCapacity: 50,
       description: '',
       isActive: true,
     })
@@ -76,8 +79,9 @@ export default function HostelManagement() {
     setEditingHostel(hostel)
     reset({
       name: hostel.name,
-      code: hostel.code,
       type: hostel.type,
+      location: hostel.location || 'Main Campus',
+      totalCapacity: hostel.totalCapacity || 50,
       description: hostel.description || '',
       isActive: hostel.isActive,
     })
@@ -154,10 +158,10 @@ export default function HostelManagement() {
           <table className="w-full text-left text-xs">
             <thead className="border-b border-white/10 bg-navy-900/80 uppercase text-slate-400">
               <tr>
-                <th className="px-6 py-4 font-semibold">Code</th>
                 <th className="px-6 py-4 font-semibold">Hostel Name</th>
                 <th className="px-6 py-4 font-semibold">Gender Type</th>
-                <th className="px-6 py-4 font-semibold">Total Rooms</th>
+                <th className="px-6 py-4 font-semibold">Location</th>
+                <th className="px-6 py-4 font-semibold">Total Capacity</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 text-right font-semibold">Actions</th>
               </tr>
@@ -165,10 +169,10 @@ export default function HostelManagement() {
             <tbody className="divide-y divide-white/5 text-slate-200">
               {hostels.map((h) => (
                 <tr key={h._id} className="transition hover:bg-white/5">
-                  <td className="px-6 py-4 font-mono font-bold text-brand-blue">{h.code}</td>
                   <td className="px-6 py-4 font-semibold text-white">{h.name}</td>
                   <td className="px-6 py-4">{h.type} Hostel</td>
-                  <td className="px-6 py-4">{h.totalRooms ?? 0} Rooms</td>
+                  <td className="px-6 py-4 text-slate-300">{h.location || 'Main Campus'}</td>
+                  <td className="px-6 py-4 font-semibold">{h.totalCapacity ?? 0} Beds</td>
                   <td className="px-6 py-4">
                     <Badge status={h.isActive ? 'active' : 'inactive'}>
                       {h.isActive ? 'Active' : 'Inactive'}
@@ -205,22 +209,31 @@ export default function HostelManagement() {
             {...register('name')}
           />
 
-          <Input
-            label="Hostel Code / Building ID"
-            placeholder="e.g. KAV-A"
-            error={errors.code?.message}
-            {...register('code')}
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select
+              label="Hostel Gender Type"
+              options={[
+                { value: 'Boys', label: 'Boys Hostel' },
+                { value: 'Girls', label: 'Girls Hostel' },
+                { value: 'Co-ed', label: 'Co-ed Hostel' },
+              ]}
+              error={errors.type?.message}
+              {...register('type')}
+            />
 
-          <Select
-            label="Hostel Gender Type"
-            options={[
-              { value: 'Boys', label: 'Boys Hostel' },
-              { value: 'Girls', label: 'Girls Hostel' },
-              { value: 'Co-ed', label: 'Co-ed Hostel' },
-            ]}
-            error={errors.type?.message}
-            {...register('type')}
+            <Input
+              label="Total Capacity (Beds)"
+              type="number"
+              error={errors.totalCapacity?.message}
+              {...register('totalCapacity')}
+            />
+          </div>
+
+          <Input
+            label="Hostel Location"
+            placeholder="e.g. North Campus, Block B"
+            error={errors.location?.message}
+            {...register('location')}
           />
 
           <div className="flex flex-col gap-1.5">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, CheckCircle2, ClipboardList, Filter, XCircle } from 'lucide-react'
+import { Check, ClipboardList, Filter, XCircle } from 'lucide-react'
 import {
   approveApplication,
   getApplications,
@@ -116,6 +116,7 @@ export default function ApplicationReview() {
                 <th className="px-6 py-4 font-semibold">Department / Year</th>
                 <th className="px-6 py-4 font-semibold">Preferred Hostel</th>
                 <th className="px-6 py-4 font-semibold">Room Type</th>
+                <th className="px-6 py-4 font-semibold">Reason</th>
                 <th className="px-6 py-4 font-semibold">Applied On</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 text-right font-semibold">Actions</th>
@@ -130,13 +131,18 @@ export default function ApplicationReview() {
                   <tr key={app._id} className="transition hover:bg-white/5">
                     <td className="px-6 py-4 font-semibold text-white">{student.name || 'N/A'}</td>
                     <td className="px-6 py-4 font-mono font-bold text-brand-blue">
-                      {student.rollNumber || 'N/A'}
+                      {student.studentId || student.rollNumber || 'N/A'}
                     </td>
                     <td className="px-6 py-4">
                       {student.department} (Yr {student.year})
                     </td>
                     <td className="px-6 py-4 text-slate-300">{hostel.name || 'N/A'}</td>
                     <td className="px-6 py-4">{app.preferredRoomType}</td>
+                    <td className="px-6 py-4 max-w-[180px] text-slate-300">
+                      <span className="line-clamp-2" title={app.reason}>
+                        {app.reason || '—'}
+                      </span>
+                    </td>
                     <td className="px-6 py-4">{new Date(app.createdAt).toLocaleDateString()}</td>
                     <td className="px-6 py-4">
                       <Badge status={app.status}>{app.status}</Badge>
@@ -184,11 +190,16 @@ export default function ApplicationReview() {
           <div className="flex flex-col gap-4">
             <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-xs">
               <p className="font-semibold text-white">
-                Student: {selectedApp.student?.name} ({selectedApp.student?.rollNumber})
+                Student: {selectedApp.student?.name} ({selectedApp.student?.studentId || selectedApp.student?.rollNumber})
               </p>
               <p className="mt-1 text-slate-400">
                 Requested: {selectedApp.preferredHostel?.name} • {selectedApp.preferredRoomType} Occupancy
               </p>
+              {selectedApp.reason && (
+                <p className="mt-1 text-slate-400">
+                  Reason: <span className="text-slate-300">{selectedApp.reason}</span>
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">

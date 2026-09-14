@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, FileText, Trash2, XCircle } from 'lucide-react'
+import { Clock, FileText, XCircle } from 'lucide-react'
 import { cancelApplication, getMyApplications } from '../../services/applicationService'
 import Badge from '../../components/Badge'
 import Button from '../../components/Button'
@@ -104,6 +104,11 @@ export default function MyApplication() {
                       Hostel Type: <strong className="text-slate-200">{app.preferredHostel?.type || 'N/A'}</strong>
                     </span>
                   </div>
+                  {app.reason && (
+                    <p className="mt-2 text-xs text-slate-400">
+                      Reason: <span className="text-slate-300">{app.reason}</span>
+                    </p>
+                  )}
                 </div>
 
                 {app.status === 'Pending' && (

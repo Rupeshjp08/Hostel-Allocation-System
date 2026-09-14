@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { CheckSquare, Plus, UserCheck, XCircle } from 'lucide-react'
 import { cancelAllocation, createAllocation, getAllocations } from '../../services/allocationService'
 import { getApplications } from '../../services/applicationService'
-import { getRooms } from '../../services/roomService'
+import { getRoomById, getRooms } from '../../services/roomService'
 import Badge from '../../components/Badge'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
@@ -15,10 +15,12 @@ export default function AllocationManagement() {
   const [allocations, setAllocations] = useState([])
   const [approvedApplications, setApprovedApplications] = useState([])
   const [availableRooms, setAvailableRooms] = useState([])
+  const [availableBeds, setAvailableBeds] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedAppId, setSelectedAppId] = useState('')
   const [selectedRoomId, setSelectedRoomId] = useState('')
+  const [selectedBedNumber, setSelectedBedNumber] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -38,17 +40,53 @@ export default function AllocationManagement() {
     fetchAllocationsData()
   }, [])
 
+  useEffect(() => {
+    if (!selectedRoomId) {
+      setAvailableBeds([])
+      setSelectedBedNumber('')
+      return
+    }
+
+    const fetchRoomBeds = async () => {
+      try {
+        const res = await getRoomById(selectedRoomId)
+        const beds = res.data.data?.room?.availableBedNumbers || []
+        setAvailableBeds(beds)
+        if (beds.length > 0) {
+          setSelectedBedNumber(String(beds[0]))
+        } else {
+          setSelectedBedNumber('')
+        }
+      } catch (err) {
+        setAvailableBeds([])
+        setSelectedBedNumber('')
+      }
+    }
+
+    fetchRoomBeds()
+  }, [selectedRoomId])
+
   const handleOpenAllocationModal = async () => {
     try {
       setSelectedAppId('')
       setSelectedRoomId('')
+      setSelectedBedNumber('')
+      setAvailableBeds([])
 
-      const [appRes, roomRes] = await Promise.all([
+      const [appRes, roomRes, allocationRes] = await Promise.all([
         getApplications({ status: 'Approved' }),
         getRooms({ status: 'Active' }),
+        getAllocations({ status: 'Active' }),
       ])
 
-      const unallocatedApps = appRes.data.data?.applications || []
+      const activeAllocations = allocationRes.data.data?.allocations || []
+      const allocatedStudentIds = new Set(
+        activeAllocations.map((a) => a.student?._id || a.student)
+      )
+
+      const unallocatedApps = (appRes.data.data?.applications || []).filter(
+        (app) => !allocatedStudentIds.has(app.student?._id || app.student)
+      )
       const openRooms = (roomRes.data.data?.rooms || []).filter(
         (r) => (r.availableBeds ?? r.capacity) > 0
       )
@@ -63,8 +101,8 @@ export default function AllocationManagement() {
 
   const handleCreateAllocation = async (e) => {
     e.preventDefault()
-    if (!selectedAppId || !selectedRoomId) {
-      alert('Please select both a student application and an available room.')
+    if (!selectedAppId || !selectedRoomId || !selectedBedNumber) {
+      alert('Please select a student application, an available room, and a bed number.')
       return
     }
 
@@ -77,6 +115,7 @@ export default function AllocationManagement() {
         student: appObj.student._id || appObj.student,
         room: selectedRoomId,
         application: selectedAppId,
+        bedNumber: Number(selectedBedNumber),
       })
 
       setModalOpen(false)
@@ -145,6 +184,7 @@ export default function AllocationManagement() {
                 <th className="px-6 py-4 font-semibold">Roll Number</th>
                 <th className="px-6 py-4 font-semibold">Hostel Block</th>
                 <th className="px-6 py-4 font-semibold">Room No.</th>
+                <th className="px-6 py-4 font-semibold">Bed No.</th>
                 <th className="px-6 py-4 font-semibold">Floor</th>
                 <th className="px-6 py-4 font-semibold">Allocated On</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
@@ -161,15 +201,18 @@ export default function AllocationManagement() {
                   <tr key={alloc._id} className="transition hover:bg-white/5">
                     <td className="px-6 py-4 font-semibold text-white">{student.name || 'N/A'}</td>
                     <td className="px-6 py-4 font-mono font-bold text-brand-blue">
-                      {student.rollNumber || 'N/A'}
+                      {student.studentId || student.rollNumber || 'N/A'}
                     </td>
                     <td className="px-6 py-4 text-slate-300">{hostel.name || 'N/A'}</td>
                     <td className="px-6 py-4 font-mono font-bold text-white">
                       Room {room.roomNumber || 'N/A'}
                     </td>
+                    <td className="px-6 py-4 font-semibold text-emerald-400">
+                      Bed #{alloc.bedNumber || 1}
+                    </td>
                     <td className="px-6 py-4">Floor {room.floor ?? 1}</td>
                     <td className="px-6 py-4">
-                      {new Date(alloc.allocatedAt || alloc.createdAt).toLocaleDateString()}
+                      {new Date(alloc.allocationDate || alloc.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
                       <Badge status={alloc.status}>{alloc.status}</Badge>
@@ -205,7 +248,7 @@ export default function AllocationManagement() {
             label="Approved Student Application"
             options={approvedApplications.map((app) => ({
               value: app._id,
-              label: `${app.student?.name} (${app.student?.rollNumber}) - Prefers ${app.preferredHostel?.name} (${app.preferredRoomType})`,
+              label: `${app.student?.name} (${app.student?.studentId || app.student?.rollNumber}) - Prefers ${app.preferredHostel?.name} (${app.preferredRoomType})`,
             }))}
             placeholder="Select an approved student..."
             value={selectedAppId}
@@ -221,6 +264,24 @@ export default function AllocationManagement() {
             placeholder="Select an available room..."
             value={selectedRoomId}
             onChange={(e) => setSelectedRoomId(e.target.value)}
+          />
+
+          <Select
+            label="Bed Number Assignment"
+            options={availableBeds.map((b) => ({
+              value: String(b),
+              label: `Bed #${b}`,
+            }))}
+            placeholder={
+              !selectedRoomId
+                ? 'Select a room first...'
+                : availableBeds.length === 0
+                ? 'No free beds in this room'
+                : 'Select bed number...'
+            }
+            value={selectedBedNumber}
+            onChange={(e) => setSelectedBedNumber(e.target.value)}
+            disabled={!selectedRoomId || availableBeds.length === 0}
           />
 
           {approvedApplications.length === 0 && (
@@ -242,7 +303,7 @@ export default function AllocationManagement() {
             <Button
               type="submit"
               loading={submitting}
-              disabled={approvedApplications.length === 0 || availableRooms.length === 0}
+              disabled={approvedApplications.length === 0 || availableRooms.length === 0 || !selectedBedNumber}
             >
               <UserCheck className="h-4 w-4" />
               Complete Allocation

@@ -1,4 +1,4 @@
-import { LogOut, Menu, Shield, User } from 'lucide-react'
+import { LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import Badge from './Badge'
 import Button from './Button'

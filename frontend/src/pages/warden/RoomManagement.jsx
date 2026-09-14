@@ -17,13 +17,15 @@ import Select from '../../components/Select'
 const roomSchema = z.object({
   hostel: z.string().min(1, 'Hostel is required'),
   roomNumber: z.string().min(1, 'Room number is required'),
-  roomType: z.enum(['Single', 'Double', 'Triple', 'Quad'], {
-    errorMap: () => ({ message: 'Please select a room type' }),
-  }),
-  capacity: z.coerce.number().min(1, 'Capacity must be at least 1'),
+  block: z.string().min(1, 'Block is required'),
+  roomType: z.enum(
+    ['Single Sharing', 'Double Sharing', 'Triple Sharing', 'Four Sharing'],
+    {
+      errorMap: () => ({ message: 'Please select a room type' }),
+    }
+  ),
   floor: z.coerce.number().min(0, 'Floor number is required'),
-  monthlyFee: z.coerce.number().min(0, 'Monthly fee must be non-negative'),
-  status: z.enum(['Active', 'Maintenance', 'Inactive'], {
+  status: z.enum(['Active', 'Inactive'], {
     errorMap: () => ({ message: 'Please select a status' }),
   }),
 })
@@ -46,10 +48,9 @@ export default function RoomManagement() {
   } = useForm({
     resolver: zodResolver(roomSchema),
     defaultValues: {
-      roomType: 'Double',
-      capacity: 2,
+      block: 'Block A',
+      roomType: 'Double Sharing',
       floor: 1,
-      monthlyFee: 5000,
       status: 'Active',
     },
   })
@@ -79,10 +80,9 @@ export default function RoomManagement() {
     reset({
       hostel: hostels[0]?._id || '',
       roomNumber: '',
-      roomType: 'Double',
-      capacity: 2,
+      block: 'Block A',
+      roomType: 'Double Sharing',
       floor: 1,
-      monthlyFee: 5000,
       status: 'Active',
     })
     setModalOpen(true)
@@ -93,10 +93,9 @@ export default function RoomManagement() {
     reset({
       hostel: room.hostel?._id || room.hostel,
       roomNumber: room.roomNumber,
+      block: room.block || 'Block A',
       roomType: room.roomType,
-      capacity: room.capacity,
       floor: room.floor,
-      monthlyFee: room.monthlyFee,
       status: room.status,
     })
     setModalOpen(true)
@@ -155,7 +154,7 @@ export default function RoomManagement() {
               <option value="" className="bg-navy-900">All Hostels</option>
               {hostels.map((h) => (
                 <option key={h._id} value={h._id} className="bg-navy-900">
-                  {h.name} ({h.code})
+                  {h.name} ({h.type})
                 </option>
               ))}
             </select>
@@ -198,25 +197,26 @@ export default function RoomManagement() {
               <tr>
                 <th className="px-6 py-4 font-semibold">Room No.</th>
                 <th className="px-6 py-4 font-semibold">Hostel Block</th>
+                <th className="px-6 py-4 font-semibold">Block</th>
                 <th className="px-6 py-4 font-semibold">Floor</th>
                 <th className="px-6 py-4 font-semibold">Type</th>
                 <th className="px-6 py-4 font-semibold">Capacity</th>
                 <th className="px-6 py-4 font-semibold">Occupancy</th>
                 <th className="px-6 py-4 font-semibold">Available Beds</th>
-                <th className="px-6 py-4 font-semibold">Monthly Fee</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 text-right font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-200">
               {rooms.map((r) => {
-                const currentOcc = r.currentOccupancy ?? 0
+                const currentOcc = r.occupiedBeds ?? r.currentOccupancy ?? 0
                 const availBeds = r.availableBeds ?? Math.max(r.capacity - currentOcc, 0)
 
                 return (
                   <tr key={r._id} className="transition hover:bg-white/5">
                     <td className="px-6 py-4 font-mono font-bold text-white">{r.roomNumber}</td>
                     <td className="px-6 py-4 text-slate-300">{r.hostel?.name || 'N/A'}</td>
+                    <td className="px-6 py-4">{r.block || 'Main'}</td>
                     <td className="px-6 py-4">Floor {r.floor}</td>
                     <td className="px-6 py-4">{r.roomType}</td>
                     <td className="px-6 py-4">{r.capacity} Beds</td>
@@ -224,17 +224,8 @@ export default function RoomManagement() {
                     <td className="px-6 py-4 font-semibold text-emerald-400">
                       {availBeds} Free
                     </td>
-                    <td className="px-6 py-4">₹{r.monthlyFee}</td>
                     <td className="px-6 py-4">
-                      <Badge
-                        status={
-                          r.status === 'Active'
-                            ? 'active'
-                            : r.status === 'Maintenance'
-                            ? 'pending'
-                            : 'inactive'
-                        }
-                      >
+                      <Badge status={r.status === 'Active' ? 'active' : 'inactive'}>
                         {r.status}
                       </Badge>
                     </td>
@@ -265,7 +256,7 @@ export default function RoomManagement() {
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <Select
             label="Hostel Block"
-            options={hostels.map((h) => ({ value: h._id, label: `${h.name} (${h.code})` }))}
+            options={hostels.map((h) => ({ value: h._id, label: `${h.name} (${h.type})` }))}
             error={errors.hostel?.message}
             {...register('hostel')}
           />
@@ -278,25 +269,25 @@ export default function RoomManagement() {
               {...register('roomNumber')}
             />
 
-            <Select
-              label="Room Occupancy Type"
-              options={[
-                { value: 'Single', label: 'Single (1 Bed)' },
-                { value: 'Double', label: 'Double (2 Beds)' },
-                { value: 'Triple', label: 'Triple (3 Beds)' },
-                { value: 'Quad', label: 'Quad (4 Beds)' },
-              ]}
-              error={errors.roomType?.message}
-              {...register('roomType')}
+            <Input
+              label="Block Name"
+              placeholder="e.g. Block A, Wing B"
+              error={errors.block?.message}
+              {...register('block')}
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Input
-              label="Capacity (Beds)"
-              type="number"
-              error={errors.capacity?.message}
-              {...register('capacity')}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select
+              label="Room Occupancy Type"
+              options={[
+                { value: 'Single Sharing', label: 'Single Sharing (1 Bed)' },
+                { value: 'Double Sharing', label: 'Double Sharing (2 Beds)' },
+                { value: 'Triple Sharing', label: 'Triple Sharing (3 Beds)' },
+                { value: 'Four Sharing', label: 'Four Sharing (4 Beds)' },
+              ]}
+              error={errors.roomType?.message}
+              {...register('roomType')}
             />
 
             <Input
@@ -305,20 +296,12 @@ export default function RoomManagement() {
               error={errors.floor?.message}
               {...register('floor')}
             />
-
-            <Input
-              label="Monthly Fee (₹)"
-              type="number"
-              error={errors.monthlyFee?.message}
-              {...register('monthlyFee')}
-            />
           </div>
 
           <Select
             label="Room Status"
             options={[
               { value: 'Active', label: 'Active' },
-              { value: 'Maintenance', label: 'Maintenance' },
               { value: 'Inactive', label: 'Inactive' },
             ]}
             error={errors.status?.message}
