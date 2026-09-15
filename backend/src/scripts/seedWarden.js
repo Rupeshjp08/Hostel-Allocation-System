@@ -4,13 +4,9 @@ const { connectDB } = require('../config/db');
 const User = require('../models/User');
 
 const seedWarden = async () => {
-  const email = (process.env.WARDEN_EMAIL || '').trim().toLowerCase();
-  const password = process.env.WARDEN_PASSWORD;
+  const email = (process.env.WARDEN_EMAIL || 'warden@hostel.edu').trim().toLowerCase();
+  const password = process.env.WARDEN_PASSWORD || 'ChangeThisPassword123';
   const name = process.env.WARDEN_NAME || 'Hostel Warden';
-
-  if (!email || !password) {
-    throw new Error('WARDEN_EMAIL and WARDEN_PASSWORD must be set in backend/.env');
-  }
 
   if (password.length < 8) {
     throw new Error('WARDEN_PASSWORD must be at least 8 characters long.');

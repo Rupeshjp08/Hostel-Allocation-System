@@ -1,10 +1,20 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
 
 const connectionStates = {
   0: 'disconnected',
   1: 'connected',
   2: 'connecting',
   3: 'disconnecting',
+};
+
+const sanitizeUri = (uri) => {
+  if (!uri) return '';
+  try {
+    return uri.replace(/mongodb(\+srv)?:\/\/([^:]+):([^@]+)@/, 'mongodb$1://$2:****@');
+  } catch (e) {
+    return 'mongodb+srv://****:****@****';
+  }
 };
 
 const getDatabaseStatus = () => {
@@ -21,13 +31,32 @@ const connectDB = async () => {
     return;
   }
 
+  const sanitized = sanitizeUri(mongoUri);
+
   try {
     await mongoose.connect(mongoUri);
-    console.log(`MongoDB connected (${getDatabaseStatus()})`);
+    console.log(`MongoDB connected successfully to ${sanitized} (status: ${getDatabaseStatus()})`);
   } catch (error) {
-    console.error(`MongoDB connection failed: ${error.message}`);
+    console.error(`MongoDB connection attempt failed: ${error.message}`);
+
+    if (
+      error.message.includes('querySrv') ||
+      error.code === 'ECONNREFUSED' ||
+      error.message.includes('ENOTFOUND')
+    ) {
+      console.log('Local DNS server failed SRV query. Retrying Node DNS resolution with public DNS (8.8.8.8, 8.8.4.4)...');
+      try {
+        dns.setServers(['8.8.8.8', '8.8.4.4']);
+        await mongoose.connect(mongoUri);
+        console.log(`MongoDB connected successfully via public DNS fallback (status: ${getDatabaseStatus()})`);
+        return;
+      } catch (fallbackErr) {
+        console.error(`MongoDB connection fallback failed: ${fallbackErr.message}`);
+      }
+    }
+
     console.error(
-      'Start MongoDB locally or paste a MongoDB Atlas connection string into backend/.env, then restart the server.'
+      'Diagnostic hint: If using MongoDB Atlas, check Windows DNS settings (8.8.8.8 / 8.8.4.4), network firewall, or Atlas IP whitelist.'
     );
   }
 };
@@ -35,4 +64,6 @@ const connectDB = async () => {
 module.exports = {
   connectDB,
   getDatabaseStatus,
+  sanitizeUri,
 };
+
