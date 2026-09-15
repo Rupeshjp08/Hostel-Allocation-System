@@ -21,7 +21,17 @@ const getDatabaseStatus = () => {
   return connectionStates[mongoose.connection.readyState] || 'unknown';
 };
 
+/**
+ * Connect to MongoDB. Safe to call multiple times — if a connection is already
+ * established or in progress, this is a no-op.  Critical for Vercel Serverless
+ * Functions where the module scope is reused across warm invocations.
+ */
 const connectDB = async () => {
+  // Already connected or connecting — reuse the existing connection
+  if (mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
+    return;
+  }
+
   const mongoUri = process.env.MONGO_URI;
 
   if (!mongoUri) {
@@ -66,4 +76,3 @@ module.exports = {
   getDatabaseStatus,
   sanitizeUri,
 };
-
