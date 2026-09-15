@@ -64,9 +64,12 @@ export default function ApplyHostel() {
 
   const eligibleHostels = hostels.filter((h) => {
     if (!user?.gender) return true // no gender set — show all and let backend validate
-    if (h.type === 'Boys' && user.gender !== 'Male') return false
-    if (h.type === 'Girls' && user.gender !== 'Female') return false
-    if (h.type !== 'Co-ed' && user.gender === 'Other') return false
+    const userGender = String(user.gender).trim().toLowerCase()
+    const hostelType = String(h.type || '').trim().toLowerCase()
+
+    if (hostelType === 'boys' && userGender !== 'male') return false
+    if (hostelType === 'girls' && userGender !== 'female') return false
+    if (hostelType !== 'co-ed' && userGender === 'other') return false
     return true
   })
 

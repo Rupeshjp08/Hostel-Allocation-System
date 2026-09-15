@@ -43,10 +43,13 @@ const createApplication = asyncHandler(async (req, res) => {
     throw new AppError('The selected hostel is not available.', 400);
   }
 
-  if (hostel.type === 'Boys' && req.user.gender !== 'Male') {
+  const userGender = String(req.user.gender || '').trim().toLowerCase();
+  const hostelType = String(hostel.type || '').trim().toLowerCase();
+
+  if (hostelType === 'boys' && userGender !== 'male') {
     throw new AppError('This hostel is available for male students only.', 400);
   }
-  if (hostel.type === 'Girls' && req.user.gender !== 'Female') {
+  if (hostelType === 'girls' && userGender !== 'female') {
     throw new AppError('This hostel is available for female students only.', 400);
   }
 

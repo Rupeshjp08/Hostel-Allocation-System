@@ -2,11 +2,15 @@ const jwt = require('jsonwebtoken');
 const AppError = require('./AppError');
 
 const getJwtSecret = () => {
-  if (!process.env.JWT_SECRET) {
-    throw new AppError('Server authentication is not configured.', 500);
+  const secret = process.env.JWT_SECRET;
+  if (!secret || typeof secret !== 'string' || secret.trim() === '') {
+    throw new AppError(
+      'Server authentication is misconfigured: JWT_SECRET environment variable is missing.',
+      500
+    );
   }
 
-  return process.env.JWT_SECRET;
+  return secret.trim();
 };
 
 const createAuthToken = (user) => {
@@ -27,6 +31,7 @@ const verifyAuthToken = (token) => {
 };
 
 module.exports = {
+  getJwtSecret,
   createAuthToken,
   verifyAuthToken,
 };

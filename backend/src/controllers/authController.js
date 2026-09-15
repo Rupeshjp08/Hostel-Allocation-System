@@ -2,10 +2,13 @@ const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const sendResponse = require('../utils/sendResponse');
-const { createAuthToken } = require('../utils/token');
+const { createAuthToken, getJwtSecret } = require('../utils/token');
 const { validateStudentRegister, validateLogin } = require('../utils/validateAuth');
 
 const registerStudent = asyncHandler(async (req, res) => {
+  // Validate configuration before processing
+  getJwtSecret();
+
   const errors = validateStudentRegister(req.body);
 
   if (errors.length > 0) {
@@ -33,6 +36,9 @@ const registerStudent = asyncHandler(async (req, res) => {
 });
 
 const login = asyncHandler(async (req, res) => {
+  // Validate configuration before processing
+  getJwtSecret();
+
   const errors = validateLogin(req.body);
 
   if (errors.length > 0) {

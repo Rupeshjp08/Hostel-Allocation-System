@@ -46,15 +46,20 @@ app.use(
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
-// Routes
+// Health check route
 // ---------------------------------------------------------------------------
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Hostel Room Allocation API is running',
+  const dbStatus = getDatabaseStatus();
+  const isConnected = dbStatus === 'connected';
+
+  res.status(isConnected ? 200 : 503).json({
+    success: isConnected,
+    message: isConnected
+      ? 'Hostel Room Allocation API is operational'
+      : 'Hostel Room Allocation API is running with database disconnected',
     data: {
       service: 'hostel-room-allocation-backend',
-      database: getDatabaseStatus(),
+      database: dbStatus,
       env: {
         MONGO_URI: !!process.env.MONGO_URI,
         JWT_SECRET: !!process.env.JWT_SECRET,
@@ -65,6 +70,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Application routes
+// ---------------------------------------------------------------------------
 app.use('/api/auth', authRoutes);
 app.use('/api/hostels', hostelRoutes);
 app.use('/api/rooms', roomRoutes);

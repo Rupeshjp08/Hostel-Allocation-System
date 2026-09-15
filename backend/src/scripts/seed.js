@@ -1,103 +1,183 @@
-﻿require("dotenv").config({ path: require("path").join(__dirname, "../../.env") });
-const mongoose = require("mongoose");
-const User = require("../models/User");
-const Hostel = require("../models/Hostel");
-const Room = require("../models/Room");
+const path = require('path');
+const dns = require('dns');
+
+// Configure fallback DNS for environments where SRV records fail
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (_) {}
+
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+const mongoose = require('mongoose');
+const User = require('../models/User');
+const Hostel = require('../models/Hostel');
+const Room = require('../models/Room');
 
 const MONGO_URI = process.env.MONGO_URI;
-if (!MONGO_URI) { console.error("ERROR: MONGO_URI missing in backend/.env"); process.exit(1); }
+if (!MONGO_URI) {
+  console.error('ERROR: MONGO_URI missing in backend/.env');
+  process.exit(1);
+}
 
-async function main() {
-  await mongoose.connect(MONGO_URI);
-  console.log("MongoDB connected to:", MONGO_URI);
+// Standard hostel definitions (Boys, Girls, and Co-ed)
+const hostelDefs = [
+  {
+    name: 'Kaveri Boys Hostel',
+    type: 'Boys',
+    location: 'North Campus, Block A',
+    description: 'Modern hostel for male students with sports facilities and WiFi.',
+    totalCapacity: 120,
+    isActive: true,
+  },
+  {
+    name: 'Ganga Boys Hostel',
+    type: 'Boys',
+    location: 'East Campus, Block D',
+    description: 'Well-maintained hostel for male students with study rooms and 24/7 security.',
+    totalCapacity: 60,
+    isActive: true,
+  },
+  {
+    name: 'Saraswati Girls Hostel',
+    type: 'Girls',
+    location: 'South Campus, Block B',
+    description: 'Secure hostel for female students with 24/7 warden on duty.',
+    totalCapacity: 100,
+    isActive: true,
+  },
+  {
+    name: 'Lakshmi Girls Hostel',
+    type: 'Girls',
+    location: 'West Campus, Block E',
+    description: 'Comfortable accommodation for female students with modern amenities.',
+    totalCapacity: 80,
+    isActive: true,
+  },
+  {
+    name: 'Unity Co-ed Hostel',
+    type: 'Co-ed',
+    location: 'Central Campus, Block C',
+    description: 'Co-educational hostel with separate wings and shared common areas.',
+    totalCapacity: 80,
+    isActive: true,
+  },
+];
 
-  // --- 1. Warden ---
-  const wardenEmail = (process.env.WARDEN_EMAIL || "warden@hostel.edu").trim().toLowerCase();
-  const wardenPassword = process.env.WARDEN_PASSWORD || "ChangeThisPassword123";
-  const wardenName = process.env.WARDEN_NAME || "Hostel Warden";
-  const warden = await User.findOne({ email: wardenEmail });
-  if (!warden) {
-    await User.create({ name: wardenName, email: wardenEmail, password: wardenPassword, role: "warden", phone: "9999999999", gender: "Other" });
-    console.log("Warden created:", wardenEmail);
-  } else { console.log("Warden exists:", wardenEmail); }
+const roomTypeCapacity = {
+  'Single Sharing': 1,
+  'Double Sharing': 2,
+  'Triple Sharing': 3,
+  'Four Sharing': 4,
+};
 
-  // --- 2. Remove bad test hostels (timestamp-named) ---
-  const badHostels = await Hostel.find({ name: { $regex: "Hostel \\d{10,}$" } });
-  if (badHostels.length > 0) {
-    const badIds = badHostels.map(function(h) { return h._id; });
-    await Room.deleteMany({ hostel: { $in: badIds } });
-    await Hostel.deleteMany({ _id: { $in: badIds } });
-    console.log("Removed " + badHostels.length + " bad test hostel(s) and their rooms");
+const roomDefs = [
+  { block: 'Block A', floor: 0, num: '001', type: 'Single Sharing' },
+  { block: 'Block A', floor: 0, num: '002', type: 'Double Sharing' },
+  { block: 'Block A', floor: 0, num: '003', type: 'Double Sharing' },
+  { block: 'Block A', floor: 1, num: '101', type: 'Triple Sharing' },
+  { block: 'Block A', floor: 1, num: '102', type: 'Four Sharing' },
+  { block: 'Block A', floor: 1, num: '103', type: 'Double Sharing' },
+  { block: 'Block B', floor: 0, num: '201', type: 'Double Sharing' },
+  { block: 'Block B', floor: 0, num: '202', type: 'Triple Sharing' },
+  { block: 'Block B', floor: 1, num: '301', type: 'Four Sharing' },
+  { block: 'Block B', floor: 1, num: '302', type: 'Double Sharing' },
+];
+
+async function seed() {
+  console.log('[Seed] Connecting to MongoDB Atlas...');
+  await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 8000 });
+  console.log('[Seed] Connected successfully.');
+
+  // 1. Ensure Warden account exists
+  const wardenEmail = (process.env.WARDEN_EMAIL || 'warden@hostel.edu').trim().toLowerCase();
+  const wardenPassword = process.env.WARDEN_PASSWORD || 'ChangeThisPassword123';
+  const wardenName = process.env.WARDEN_NAME || 'Hostel Warden';
+
+  const existingWarden = await User.findOne({ email: wardenEmail });
+  if (!existingWarden) {
+    await User.create({
+      name: wardenName,
+      email: wardenEmail,
+      password: wardenPassword,
+      role: 'warden',
+      phone: '9999999999',
+      gender: 'Other',
+    });
+    console.log(`[Seed] Warden account created: ${wardenEmail}`);
+  } else {
+    console.log(`[Seed] Warden account exists: ${wardenEmail}`);
   }
 
-  // --- 3. Create proper hostels ---
-  const hostelDefs = [
-    { name: "Kaveri Boys Hostel",     type: "Boys",   location: "North Campus, Block A", description: "Modern hostel for male students with sports facilities and WiFi.",  totalCapacity: 120, isActive: true },
-    { name: "Ganga Boys Hostel",      type: "Boys",   location: "East Campus, Block D",  description: "Well-maintained hostel with study rooms and 24/7 security.",        totalCapacity: 60,  isActive: true },
-    { name: "Saraswati Girls Hostel", type: "Girls",  location: "South Campus, Block B", description: "Secure hostel for female students with 24/7 warden on duty.",       totalCapacity: 100, isActive: true },
-    { name: "Lakshmi Girls Hostel",   type: "Girls",  location: "West Campus, Block E",  description: "Comfortable accommodation for female students with amenities.",      totalCapacity: 80,  isActive: true },
-    { name: "Unity Co-ed Hostel",     type: "Co-ed",  location: "Central Campus, Block C", description: "Co-educational hostel with separate wings and shared areas.", totalCapacity: 80,  isActive: true },
-  ];
+  // 2. Upsert standard hostels without deleting existing ones
+  for (const def of hostelDefs) {
+    let hostel = await Hostel.findOne({ name: def.name });
 
-  const roomTypeCapacity = { "Single Sharing": 1, "Double Sharing": 2, "Triple Sharing": 3, "Four Sharing": 4 };
-  const roomDefs = [
-    { block: "Block A", floor: 0, num: "001", type: "Single Sharing" },
-    { block: "Block A", floor: 0, num: "002", type: "Double Sharing" },
-    { block: "Block A", floor: 0, num: "003", type: "Double Sharing" },
-    { block: "Block A", floor: 1, num: "101", type: "Triple Sharing" },
-    { block: "Block A", floor: 1, num: "102", type: "Four Sharing" },
-    { block: "Block A", floor: 1, num: "103", type: "Double Sharing" },
-    { block: "Block B", floor: 0, num: "201", type: "Double Sharing" },
-    { block: "Block B", floor: 0, num: "202", type: "Triple Sharing" },
-    { block: "Block B", floor: 1, num: "301", type: "Four Sharing" },
-    { block: "Block B", floor: 1, num: "302", type: "Double Sharing" },
-  ];
-
-  for (var i = 0; i < hostelDefs.length; i++) {
-    var def = hostelDefs[i];
-    var hostel = await Hostel.findOne({ name: def.name });
     if (!hostel) {
       hostel = await Hostel.create(def);
-      console.log("Created hostel: " + hostel.name + " (" + hostel.type + ")");
+      console.log(`[Seed] Created hostel: ${hostel.name} (${hostel.type})`);
     } else {
-      hostel.type = def.type; hostel.location = def.location; hostel.description = def.description;
-      hostel.totalCapacity = def.totalCapacity; hostel.isActive = def.isActive;
+      hostel.type = def.type;
+      hostel.location = def.location;
+      hostel.description = def.description;
+      hostel.totalCapacity = def.totalCapacity;
+      hostel.isActive = def.isActive;
       await hostel.save();
-      console.log("Updated hostel: " + hostel.name);
+      console.log(`[Seed] Updated hostel: ${hostel.name} (${hostel.type})`);
     }
 
-    var existingRooms = await Room.countDocuments({ hostel: hostel._id });
-    if (existingRooms > 0) { console.log("  Rooms exist (" + existingRooms + ") - skipping"); continue; }
+    // 3. Upsert rooms for this hostel
+    const existingRoomsCount = await Room.countDocuments({ hostel: hostel._id });
+    if (existingRoomsCount === 0) {
+      const words = hostel.name.split(' ').filter((w) => w.length > 1);
+      const prefix = words
+        .map((w) => w[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 3);
 
-    var words = hostel.name.split(" ").filter(function(w) { return w.length > 1; });
-    var prefix = words.map(function(w) { return w[0]; }).join("").toUpperCase().slice(0, 3);
-    var created = 0;
-    for (var j = 0; j < roomDefs.length; j++) {
-      var r = roomDefs[j];
-      try {
-        await Room.create({ hostel: hostel._id, roomNumber: prefix + "-" + r.num, block: r.block, floor: r.floor, roomType: r.type, capacity: roomTypeCapacity[r.type], status: "Active" });
-        created++;
-      } catch(e) { if (e.code !== 11000) { console.error("Room create error:", e.message); } }
+      let createdCount = 0;
+      for (const r of roomDefs) {
+        const roomNumber = `${prefix}-${r.num}`;
+        try {
+          await Room.create({
+            hostel: hostel._id,
+            roomNumber,
+            block: r.block,
+            floor: r.floor,
+            roomType: r.type,
+            capacity: roomTypeCapacity[r.type],
+            status: 'Active',
+          });
+          createdCount++;
+        } catch (e) {
+          if (e.code !== 11000) {
+            console.error(`[Seed] Room create error: ${e.message}`);
+          }
+        }
+      }
+      console.log(`[Seed]   Created ${createdCount} rooms for ${hostel.name}`);
+    } else {
+      console.log(`[Seed]   Hostel ${hostel.name} already has ${existingRoomsCount} rooms - preserved.`);
     }
-    console.log("  Created " + created + " rooms");
   }
 
-  // --- Summary ---
-  var allHostels = await Hostel.find({ isActive: true });
-  var totalRooms = await Room.countDocuments();
-  console.log("\n=== DATABASE SUMMARY ===");
-  for (var k = 0; k < allHostels.length; k++) {
-    var h = allHostels[k];
-    var rc = await Room.countDocuments({ hostel: h._id });
-    console.log("  [" + h.type + "] " + h.name + " — " + h.location + " (" + rc + " rooms)");
+  // Summary
+  const allHostels = await Hostel.find({ isActive: true });
+  const totalRooms = await Room.countDocuments();
+  console.log('\n=== SEED SUMMARY ===');
+  for (const h of allHostels) {
+    const rc = await Room.countDocuments({ hostel: h._id });
+    console.log(`  [${h.type}] ${h.name} — ${h.location} (${rc} rooms)`);
   }
-  console.log("Active hostels: " + allHostels.length);
-  console.log("Total rooms: " + totalRooms);
-  console.log("========================");
-  console.log("Seed complete!");
+  console.log(`Active hostels: ${allHostels.length}`);
+  console.log(`Total rooms: ${totalRooms}`);
+  console.log('====================\n');
 
   await mongoose.disconnect();
+  console.log('[Seed] Database disconnected cleanly.');
   process.exit(0);
 }
 
-main().catch(function(err) { console.error("SEED FAILED:", err.message); process.exit(1); });
+seed().catch((err) => {
+  console.error('[Seed] FAILED:', err.message);
+  process.exit(1);
+});
