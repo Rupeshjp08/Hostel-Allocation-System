@@ -55,6 +55,12 @@ app.get('/api/health', (req, res) => {
     data: {
       service: 'hostel-room-allocation-backend',
       database: getDatabaseStatus(),
+      env: {
+        MONGO_URI: !!process.env.MONGO_URI,
+        JWT_SECRET: !!process.env.JWT_SECRET,
+        CLIENT_ORIGIN: !!process.env.CLIENT_ORIGIN,
+        NODE_ENV: process.env.NODE_ENV || 'not set',
+      },
     },
   });
 });

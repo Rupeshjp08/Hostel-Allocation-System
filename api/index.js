@@ -5,8 +5,6 @@ const path = require('path');
 
 // Load environment variables from backend/.env when running locally.
 // On Vercel production, env vars are injected by the platform.
-// Use try/catch because dotenv lives in backend/node_modules, which is
-// bundled via the "includeFiles" directive in vercel.json.
 try {
   require(path.resolve(__dirname, '../backend/node_modules/dotenv')).config({
     path: path.resolve(__dirname, '../backend/.env'),
@@ -18,11 +16,19 @@ try {
 const { connectDB } = require('../backend/src/config/db');
 const app = require('../backend/src/app');
 
-// Connect to MongoDB before the first request. The connectDB function is safe
-// to call multiple times — it no-ops when already connected.
-let dbReady = connectDB();
-
 module.exports = async (req, res) => {
-  await dbReady;
+  // Connect (or reconnect) to MongoDB on every request.
+  // connectDB() is idempotent — it returns immediately when already connected.
+  // If the connection fails, it throws, and we return a 503 to the client.
+  try {
+    await connectDB();
+  } catch (error) {
+    console.error('[Serverless] DB connection error:', error.message);
+    return res.status(503).json({
+      success: false,
+      message: 'Service temporarily unavailable. Database connection failed.',
+    });
+  }
+
   return app(req, res);
 };
