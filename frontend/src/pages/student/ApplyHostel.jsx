@@ -108,7 +108,7 @@ export default function ApplyHostel() {
           </div>
         )}
 
-        {eligibleHostels.length === 0 ? (
+        {!serverError && eligibleHostels.length === 0 ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-center">
             <p className="text-sm font-semibold text-amber-300">
               No eligible hostels available for your gender ({user?.gender || 'N/A'})
