@@ -51,7 +51,7 @@ export default function ApplyHostel() {
       try {
         setLoading(true)
         const res = await getHostels()
-        const activeOnly = (res.data.data?.hostels || []).filter((h) => h.isActive)
+        const activeOnly = (res.data.data?.hostels || []).filter((h) => h.isActive !== false)
         setHostels(activeOnly)
       } catch (err) {
         setServerError('Failed to fetch available hostels.')
@@ -64,12 +64,38 @@ export default function ApplyHostel() {
 
   const eligibleHostels = hostels.filter((h) => {
     if (!user?.gender) return true // no gender set — show all and let backend validate
-    const userGender = String(user.gender).trim().toLowerCase()
-    const hostelType = String(h.type || '').trim().toLowerCase()
 
-    if (hostelType === 'boys' && userGender !== 'male') return false
-    if (hostelType === 'girls' && userGender !== 'female') return false
-    if (hostelType !== 'co-ed' && userGender === 'other') return false
+    const rawUserGender = String(user.gender).trim().toLowerCase()
+    const rawHostelType = String(h.type || '').trim().toLowerCase()
+
+    let normalizedGender = rawUserGender
+    if (rawUserGender.includes('male') || rawUserGender.includes('boy') || rawUserGender === 'm') {
+      normalizedGender = 'male'
+    } else if (rawUserGender.includes('female') || rawUserGender.includes('girl') || rawUserGender === 'f') {
+      normalizedGender = 'female'
+    } else if (rawUserGender.includes('other') || rawUserGender === 'o') {
+      normalizedGender = 'other'
+    }
+
+    let normalizedHostelType = rawHostelType
+    if (rawHostelType.includes('boy') || rawHostelType.includes('male')) {
+      normalizedHostelType = 'boys'
+    } else if (rawHostelType.includes('girl') || rawHostelType.includes('female')) {
+      normalizedHostelType = 'girls'
+    } else if (rawHostelType.includes('co')) {
+      normalizedHostelType = 'co-ed'
+    }
+
+    if (normalizedGender === 'male') {
+      return normalizedHostelType === 'boys' || normalizedHostelType === 'co-ed'
+    }
+    if (normalizedGender === 'female') {
+      return normalizedHostelType === 'girls' || normalizedHostelType === 'co-ed'
+    }
+    if (normalizedGender === 'other') {
+      return normalizedHostelType === 'co-ed'
+    }
+
     return true
   })
 

@@ -33,7 +33,7 @@ const getHostels = asyncHandler(async (req, res) => {
   const filter = {};
 
   if (req.user.role === 'student' || req.query.active === 'true') {
-    filter.isActive = true;
+    filter.isActive = { $ne: false };
   }
 
   if (req.query.type) {
